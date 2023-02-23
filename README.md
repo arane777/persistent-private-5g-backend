@@ -1,7 +1,6 @@
 Prerequisite: JRE 1.8
 
-How to run locally
-mvn spring-boot:run
+How to run locally: mvn spring-boot:run
 
 To build : mvn assembly:assembly -DskipTests=true
 It generates a jar file in /target.
