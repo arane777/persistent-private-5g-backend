@@ -17,7 +17,11 @@ To stop: kill -9 processId
 
 
 ==========Sample application.properties file===
+
 server.port=8080
+
 remote.server.hostname= 10.170.16.195
+
 remote.server.user= ipbx
+
 remote.server.password= Ub1Hd1!
