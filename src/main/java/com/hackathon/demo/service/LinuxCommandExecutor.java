@@ -73,6 +73,10 @@ public class LinuxCommandExecutor {
             result = false;
         }
         try {
+            if (channel == null) {
+                System.out.println("Not able to connect with remote server with Host "+ SSH_HOST + " User:"+SSH_LOGIN + " password:"+ SSH_PASSWORD); 
+                return false;
+            }
             channel.setCommand(command);
             channel.setInputStream(null);
             InputStream output = channel.getInputStream();
