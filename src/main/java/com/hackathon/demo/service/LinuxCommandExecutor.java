@@ -1,11 +1,13 @@
 package com.hackathon.demo.service;
 
 import com.jcraft.jsch.ChannelShell;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
-import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -17,6 +19,7 @@ import com.jcraft.jsch.ChannelExec;
 import com.jcraft.jsch.JSch;
 import com.jcraft.jsch.JSchException;
 import com.jcraft.jsch.Session;
+import org.springframework.web.client.RestTemplate;
 
 
 @Service
@@ -27,23 +30,37 @@ public class LinuxCommandExecutor {
     private String SSH_LOGIN;
     @Value("${remote.server.password}")
     private String SSH_PASSWORD;
+    @Value("${remote.directory.path}")
+    private String DIRECTORY_PATH;
+
+    
+    @Autowired
+    private RestTemplate restTemplate;
             
     public boolean executeCommand(String command) {
         boolean result = true;
         Process process = null;
         try {
             System.out.println("Executing command "+ command);
-            process = Runtime.getRuntime().exec(command); // for Linux
-            process.waitFor();
-            BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
-            String line;
-            while ((line = reader.readLine()) != null) {
-                System.out.println(line);
-                result = true;
-                System.out.println("Command executed successfully");
-            }
+       //     process = Runtime.getRuntime().exec(command); // for Linux
+            
+            //NEW code
+            String[] args = new String[] {"/bin/bash", "-c",command};
+            ProcessBuilder pb = new ProcessBuilder(args);
+            pb.directory(new File(DIRECTORY_PATH));
+            pb.start();
+            System.out.println("Command executed successfully"); 
+            //end
+//            process.waitFor();
+//            BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
+//            String line;
+//            while ((line = reader.readLine()) != null) {
+//                System.out.println(line);
+//                result = true;
+//                System.out.println("Command executed successfully");
+//            }
         } catch (Exception e) {
-            System.out.println("Exception occured while executing command: "+ e);
+            System.out.println("Exception occurred while executing command: "+ e);
             result = false;
         } finally {
             if (process !=null) {
@@ -54,8 +71,9 @@ public class LinuxCommandExecutor {
         return result;
     }
 
+
     public Boolean runCommandOnRemoteServer(String command) {
-        System.out.println("Run Command started SSH_HOST" + SSH_HOST + " SSH_LOGIN:"+SSH_LOGIN + " password: "+SSH_PASSWORD);
+        System.out.println("Run Command started SSH_HOST" + SSH_HOST + " User:"+SSH_LOGIN + " password: "+SSH_PASSWORD);
         boolean result = true;
         
         Session session = setupSshSession();
@@ -122,7 +140,10 @@ public class LinuxCommandExecutor {
     }
     
     
-    public void runMutipleCommandsOnRemoteServer(String command, String directoryPath) throws  Exception{
+    public String runMutipleCommandsOnRemoteServer(String command, String directoryPath) throws  Exception{
+        System.out.println("Run Command started SSH_HOST" + SSH_HOST + " User:"+SSH_LOGIN + " password: "+SSH_PASSWORD);
+
+        String response = null;
         java.util.Properties config = new java.util.Properties();
         config.put("StrictHostKeyChecking", "no");
         Session session = null;
@@ -133,7 +154,7 @@ public class LinuxCommandExecutor {
             session.setConfig(config);
             session.setPassword(SSH_PASSWORD);
             session.connect();
-
+            System.out.println("Connected to the remote server....");
             ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
 
             channel = (ChannelShell) session.openChannel("shell");
@@ -141,15 +162,16 @@ public class LinuxCommandExecutor {
             PrintStream stream = new PrintStream(channel.getOutputStream());
             channel.connect();
 
-            stream.println("cd "+directoryPath);
-            stream.flush();
-            String response = waitForPrompt(outputStream, "$");
-            System.out.println(response);
+            if (directoryPath != null && directoryPath!= "") {
+                stream.println("cd "+directoryPath);
+                stream.flush();
+                response = waitForPrompt(outputStream, "$");
+            }
             
             stream.println(command);
             stream.flush();
+            System.out.println("Waiting for the response for the command....");
             response = waitForPrompt(outputStream, "$");
-            System.out.println(response);
 
         } finally {
             if (channel != null) {
@@ -159,12 +181,13 @@ public class LinuxCommandExecutor {
                 session.disconnect();
             }
         }
+        return response;
     }
 
     static public String waitForPrompt(ByteArrayOutputStream outputStream, String prompt) throws Exception {
-        int retries = 2;
+        int retries = 3;
         for (int x = 1; x < retries; x++) {
-            TimeUnit.SECONDS.sleep(1);
+            TimeUnit.SECONDS.sleep(20);
             if (outputStream.toString().indexOf(prompt) > 0) {
                 String responseString = outputStream.toString();
                 outputStream.reset();
@@ -173,5 +196,15 @@ public class LinuxCommandExecutor {
         }
         throw new Exception("Prompt failed to show after specified timeout");
     }
-    
+
+
+    public String getMetricsData(String metricsURI) {
+        String response = null;
+        ResponseEntity<String> responseData
+                = restTemplate.getForEntity(metricsURI , String.class);
+        if (responseData != null ) {
+            response = responseData.getBody();
+        } 
+        return response;
+    }
 }
