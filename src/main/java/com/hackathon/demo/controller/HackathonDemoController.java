@@ -3,6 +3,8 @@ package com.hackathon.demo.controller;
 import com.hackathon.demo.service.LinuxCommandExecutor;
 import com.hackathon.demo.vo.RequestVO;
 import com.hackathon.demo.vo.ResponseVO;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.CrossOrigin;
@@ -17,6 +19,7 @@ import java.util.Map;
 
 @RestController
 public class HackathonDemoController {
+    Logger logger = LoggerFactory.getLogger(HackathonDemoController.class);
     @Autowired
     private LinuxCommandExecutor executor;
 
@@ -27,8 +30,9 @@ public class HackathonDemoController {
     private String metricsURI_2;
 
     @CrossOrigin
-    @PostMapping("/executecommand")
-    public ResponseVO executeLinuxCommandLocal(@RequestBody RequestVO requestVO) {
+    @PostMapping("/executecommandsync")
+    public ResponseVO executeLinuxCommandLocalSync(@RequestBody RequestVO requestVO) {
+        logger.info("executeLinuxCommandLocalSync");
         boolean result = false;
         ResponseVO response = new ResponseVO();
 
@@ -50,8 +54,30 @@ public class HackathonDemoController {
     }
 
     @CrossOrigin
+    @PostMapping("/executecommand")
+    public ResponseVO executeLinuxCommandLocalAsync(@RequestBody RequestVO requestVO) {
+        boolean result = false;
+        ResponseVO response = new ResponseVO();
+
+        if (requestVO != null && requestVO.getCommand() != null) {
+
+            logger.info("Controller: Execute Command " + requestVO.getCommand());
+            executor.executeCommandAsync(requestVO.getCommand());
+            response.setStatusCode("200");
+            response.setStatusMessage("Command executed successfully");
+            
+        } else {
+            response.setStatusCode("500");
+            response.setStatusMessage("Invalid request body!!");
+        }
+
+        return response;
+    }
+
+    @CrossOrigin
     @GetMapping("/metrics/1")
     public ResponseVO getMetricsData() {
+        logger.info("Controller: getMetricsData-1 " );
         boolean result = false;
         ResponseVO response = new ResponseVO();
         String responseData = executor.getMetricsData(metricsURI_1);
@@ -70,6 +96,7 @@ public class HackathonDemoController {
     @CrossOrigin
     @GetMapping("/metrics/2")
     public ResponseVO getMetricsData_2() {
+        logger.info("Controller: getMetricsData-2 ");
         boolean result = false;
         ResponseVO response = new ResponseVO();
         String responseData = executor.getMetricsData(metricsURI_2);
@@ -86,7 +113,7 @@ public class HackathonDemoController {
     }
 
     private Map<String, String> mapResponseData(String responseData) {
-        System.out.println("Metrics data: " + responseData);
+        logger.info("Metrics data:  "+ responseData);
         Map<String, String> resultMap = new HashMap<>();
         String[] lines2 = responseData.split("\n");
         Arrays.stream(lines2)
@@ -102,8 +129,8 @@ public class HackathonDemoController {
                             }
                         }
                 );
-        System.out.println("Mapping Metrics Data with counters");
-        resultMap.entrySet().forEach((entry) -> System.out.println("" + entry.getKey() + " " + entry.getValue()));
+        logger.info("Mapping Metrics Data with counters  ");
+        resultMap.entrySet().forEach((entry) ->  logger.info("" + entry.getKey() + " " + entry.getValue()));
         return resultMap;
     }
 
@@ -111,6 +138,7 @@ public class HackathonDemoController {
     @CrossOrigin
     @PostMapping("/executecommandremote")
     public ResponseVO executeLinuxCommand(@RequestBody RequestVO requestVO) {
+        logger.info("Controller: executecommandremote ");
         boolean result = false;
         ResponseVO response = new ResponseVO();
 
